@@ -1,0 +1,244 @@
+0.6.9
+Add support for disabling automatic near far calculation by setting cameraObject.userData.autoNearFar to false in CameraController.
+Remove reference to preImported assets after dispose.
+Add clearCache in AssetImporter to clear memory asset and loader cache. This does not clear the browser cache or cache storage.
+Implement dispose in AMaterialManager to dispose all materials. This does not remove any references to material in any scene objects.
+Replace objects in AssetManagerPlugin cache storage if downloaded again.
+Fixes in ARPlugin to present the scene in WebXR immersive-ar mode. Still in development.
+Remove obsolete parameters in SSAOPass serialization.
+Remove renderToScreen from TonemapPlugin. It's now rendered with CombinedPostPlugin.
+GroundPlugin now keeps the ground mesh rotation in z.
+Change default view names in CameraViewPlugin to #view{id}
+Add resumeAnimation() in GLTFAnimationPlugin.
+Fixes in ScrollableCameraViewPreviewPlugin.
+Fixes in PathTracingPlugin1. Add support for directional lights.
+Add reRender to CombinedPostPlugin to rerender just the screen pass with changes like outline, tonemapping etc.
+Cache blob of loaded images in ImageLoader.
+0.6.8
+Cache 'blob' in ImageBitmapLoader, images referenced by URL inside GLTF files will now be cached to CacheStorage.
+Add useTotalFrameCount to TemporalAAPlugin and its UI, if this is set to true, then frameCount won't be reset when the viewer is set to dirty
+Fix aspect refresh for camera when activated as main.
+Download and import textures with rootPath in parallel in ObjectLoader2.
+Add CameraViewControlPlugin with setState to interpolate the camera position, target between all camera views from CameraViewPlugin.
+Add ScrollableCameraViewPlugin which maps the camera views to div/sections on the HTML page and syncs the camera view with the scroll position.
+Add ScrollableCameraViewPreviewPlugin to preview the camera views in the scrollable camera view plugin with editable HTML.
+Remove SSAO disable confirm popup in SSGIPlugin
+Add autoIncrementTime control in GLTFAnimationPlugin. If set to false, the animation time can be set manually with setTime
+Several fixes in GLTFAnimationPlugin related to resetting and playing animations.
+Fixed initialized event in WebGiViewerElement
+0.6.7
+Add normalScale to material extras during GLTF export, since it doesn't work properly in some cases.
+Serialize loop, loopRepetitions and timeScale in GLTFAnimationPlugin.
+Fix timeScale in GLTFAnimationPlugin to allow negative values and bound to mixer.
+Better shadow-based transparency for the ground with aoMap mode in GroundPlugin.
+Fix unsupported encoding issue with Multi render targets.
+Add GLTFKHRMaterialVariantsPlugin to import and export KHR_materials_variants extension mappings and material variants in GLTF.
+Add classes GLTFMaterialsVariantsExtensionExport and GLTFMaterialsVariantsExtensionImport to the bundle.
+Add support for userData.__importData for loaders in AssetImporter. This data can be used after the object is added to the scene.
+Fix issue in AMaterialManager.processMaterial where non-converted materials were registered in the manager.
+Add console property to IViewer interface. It can be used to override the console object used by the viewer.
+0.6.6
+Add storeState and loadState to AViewerPlugin. All serializable plugins have support for saving and loading their state to a storage(by default localStorage).
+Fix issues with TweakpaneUiPlugin UI refresh.
+Serialize exportOptions in AssetExporterPlugin
+Add FileTransferPlugin with utility actions to download file(used by AssetExporterPlugin, CanvasSnipperPlugin, CanvasRecorderPlugin), and can be overridden to upload files to server.
+Add downloadSceneGlb function in AssetExporterPlugin
+Expose storage(cache/cache storage) in AssetManagerPlugin
+Add AWSClientPlugin which can connect to any S3 compatible server, interface with FileTransferPlugin to upload files to server on export. Dispatches event 'fileUpload' on successful upload.
+Prompt for filename when downloading file in CanvasRecorderPlugin
+Add filename property to CanvasSnipperPlugin to set default filename
+Add 'Clear local storage' and 'Clear cache' buttons to ExtrasUiPlugin
+Persist serializable plugins state when reload of page in webgi modes editor.
+Add reset defaults option in TweakpaneUiPlugin for viewer plugins to reset values to default.
+Fix loading of downloaded LUTPlugin preset json.
+Add exportState and importState functions in AViewerPlugin to export and import (serialized) plugin state.
+MaterialConfiguratorBasePlugin now creates a new material to apply if the type is mismatched.
+Add reset defaults button in the sandbox editor.
+Add viewAdd and viewDelete events in CameraViewPlugin.
+Fix resetOnEnd in GLTFAnimationPlugin.playAnimation.
+0.6.5
+Fix issues with floating point scale and render target size.
+Serialize and save geometry offsets after being prepared by DiamondPlugin. Fixes issue when geometry is modified due to DRACO compression.
+Fix diamond shader rendering after context loss and restore.
+Remove confirm dialog box when enabling SSBevelPlugin
+Disable scale in UI when mode === 'custom' in RendererUiPlugin
+Fix PickingPlugin autoFocus to fit object in view.
+Add CameraViewPlugin.animateToFitObject and alias ViewerApp.fitToView to animate camera and fit an object/scene to the view.
+Add 'Fit Scene/Object' option in modes ui bottom bar.
+0.6.4
+Add 360 turntable camera animation recording option in CanvasRecorderPlugin UI
+Add record function in CanvasRecorderPlugin which takes an action and executes it between start and stop recording calls.
+Add dracoOptions of type EncoderOptions to AssetExporterPlugin.exportOptions
+Fix Diamond rendering after context loss and restore.
+Emit events 'contextRestored' and 'contextLost' from BaseRenderer(viewer.renderer)
+Fixed bug with memory caching of offset matrices in diamond plugin.
+Serialize geometry offsets(eigen vectors) matrices in gltf to read in the viewer.
+0.6.3
+Add DiamondMaterial support for ThinFilmLayerPlugin
+Add FragmentClippingExtensionPlugin
+Automatically dispose Cube Normal Maps when all attached geometries are disposed. Can be disabled by setting CubeNormalsCaptureHelper.AutoDisposeTargets to false.
+Add functions disposeCacheMap and disposeAllCacheMaps to DiamondPlugin to dispose maps based on cacheKey.
+Add 'materialChanged' event to IScene and RootScene to notify when a material is changed on any mesh in the scene.
+Automatically prepare Diamond meshes when DiamondMaterial is set on a mesh using setMaterial.
+Add animateOnDrag to GLTFAnimationPlugin to seek animation playback with pointer drag over canvas.
+Add PointerDragHelper for easier pointer drag event subscription.
+Rewrite RendererUiPlugin for easier resolution setting with automatic scale calculation and full(container fill) mode.
+Fix aspect ratio in FragmentClippingExtensionPlugin
+0.6.2
+Add caching flag in options for setupCoreWebGiViewer
+Export setupModesUi and setupModesStyles in bundle.
+Add useTotalFrameCount and totalFrameCount in BaseRenderer.
+Add envMapRotationOffset in DiamondMaterial
+Add contrast and saturation to TonemappingPlugin
+Fixed issues in OutlinePlugin
+0.6.1
+Fix for material bump map, when SSBevel is on.
+Separate OutlineRenderPass, removed redraw in GBufferRenderPass, Changes in outline shader to render visible/hidden parts differently.
+Add vertexColors to the UI
+Export PresetGroup and subclasses in the viewer bundle.
+Fix GBufferPlugin on webgl1 devices.
+Add 9 new environment map presets.
+Export CustomAnimationHelper and CustomAnimationHelperPlugin in the bundle to interface with three.js animations by code.
+0.6.0
+Add AShaderMaterial2 aith API to create materials types with custom shaders and apply them on objects.
+Add support for custom material extensions in MeshBasicMaterial2 and DiamondMaterial.
+Add textAnchor in SimpleTextPlugin
+Read autoLookAtTarget from userData in CameraController.
+Fixed PickingPlugin to properly pick objects inside another.
+Fix promises returned from playAnimation, playClip with convergeMode, pausing in GLTFAnimationPlugin.
+Bind button value function in tweakpane buttons to config so that this works.
+Add smoothShadow to GroundPlugin to smooth baked shadow edges.
+Disabled Outline extension by default, can be enabled from the UI.
+Fixes in LUTPlugin.
+Several build improvements.
+0.5.9
+Build improvements
+0.5.8
+Add renderOrder to Object UI. Add polygonOffset, polygonOffsetFactor and polygonOffsetUnits to Physical Material UI.
+Add OutlinePlugin to the sandbox editor to show outline on selected objects. It depends on PickingPlugin Disabling it enables the bounding-box selection behaviour from PickingPlugin
+Add IGBufferUpdater interface. LUTPlugin, SSBevelPlugin, TonemapPlugin, OutlinePlugin implement it for updating GBuffer flag data
+Add addGBufferUpdater function to DepthNormalPass.
+LUTPlugin now supports upto 3 LUT Textures. Old files with LUT textures will be incompatible with this change.
+Fix for Unexpected exception while loading some old files.
+Fix for post-processing plugins not updating properties properly on setDirty call.
+Add support for adding material extensions to DiamondMaterial.
+0.5.7
+Update rhino3dm to 7.15.0
+Fix error while importing raw text files with AssetImporter
+Fix rendering issue in ContactShadowGroundPlugin where colors were inverted.
+Clear GLTF Animations on plugin remove.
+Export Combined post plugins in the viewer bundle.
+Add Record GLTF Animation button in Canvas Recorder UI
+Add events checkpointBegin and checkpointEnd to GLTFAnimationPlugin, fired when animation reaches the start position and the end.
+Fix GLTFAnimationPlugin.playAnimation to return promise that resolves properly when using convergeMode in CanvasRecorderPlugin
+Change signature of exportViewerConfig, add parameter binary which can be set to false when exporting json config, this will encode all array buffers in resources to base64 strings.
+Fix issues with de-serialization of LUT files in config json.
+Apply rotation to imported 3dm files (-Pi/2 in x) to keep orientation consistent with Rhino.
+0.5.6
+Set depthTonemap to true by default in setupCoreWebGiViewer
+Set importPopup to false by default in setupCoreWebGiViewer
+Add AAssetManagerProcessStatePlugin as helper to access the current state/progress while importing/exporting files through the AssetManagerPlugin
+Add AssetManagerLoadingBarPlugin, to show top loading bar while importing and exporting files, added by default in setupCoreWebGiViewer
+Export SSBevelPlugin and NormalBufferPlugin in bundle.
+autoScale will now also scale the object position to work properly with autoCenter
+Enable autoCenter instead of pseudoCenter in Dropzone options.
+Add 'panel' as alternative to 'folder' in UiObjectConfig.
+RendererUiPlugin: width and height are not serialized when its more than the canvas container size(at export time).
+Implement serialization of LUT Cube texture files as embedded blobs in viewer config resources while exporting GLB files.
+0.5.5
+Add WEBGI_materials_displacementmap as GLTF extension to export displacement map, scale and bias in GLTF.
+Fixed a bug when exporting lightMap with WEBGI_materials_lightmap extension.
+Fix refresh of camera UI objects in CameraUiPlugin.
+Rename SerializableOrbitControls to OrbitControls3
+Add setControlsCtor and setControlsCtor in CameraController to add custom camera controls with mode.
+Add abstract class ACameraControlsPlugin to attach new camera controls to the viewer cameras.
+Add DeviceOrientationControlsPlugin ts version of DeviceOrientationControls with added features, using ACameraControlsPlugin.
+Add FirstPersonControls2, ts version of FirstPersonControls with added features, using ACameraControlsPlugin.
+Add PointerLockControls2, ts version of PointerLockControls with added features, using ACameraControlsPlugin.
+Removed DeviceOrientationPlugin.
+Fix signature of RootScene.addEventListener to get event types in autocomplete.
+Add IMaterial.dispose() (dev) - this will automatically dispose all the Texture objects on the material that are not used by any other material in MaterialManager, unless texture.userData.disposeOnIdle is false. The material must be registered with MaterialManager(which happens during load from AssetManagerPlugin), and it is automatically unregistered on dispose.
+Rename material.userData.appliedMeshes to material.userData.__appliedMeshes.
+Rename geometry.userData.appliedMeshes to geometry.userData.__appliedMeshes.
+Add viewer.createMaterial() to create new materials. (similar to viewer.createPhysicalMaterial with ability to create any material type).
+Add CSS3DRendererPlugin to editor UI and export class in bundle.
+Add forcedLinearDepth support in GbufferPlugin in material userData.
+Fix issue with alpha map clearing scene on rendering in GbufferPlugin.
+Fix material indexing for multi-materials in CSGPluginBSP.
+0.5.4
+Add CSGPluginBVH and CSGPluginBSP
+Add deviceOrientation to controlsMode in ICamera.
+Improve CameraController to support different types of controls.
+Add DeviceOrientationPlugin (alpha)
+Add support to import/export polygonOffset parameters in gltf material extras extension.
+Allow negative values in offset and repeat in texture sampler UI config.
+Export class SSGIPlugin in bundle. (beta)
+Change DropzonePlugin default import options with pseudoCenter: true and autoCenter: false
+Export class EllipseCurve3D in bundle.
+Fix parameters refresh on deserialize in RendererUiPlugin. Add RendererUiPlugin.refreshSize() to trigger setSize manually.
+Add support for loading .cube files in Tweakpane Image UI.
+Edit ViewerApp.setBackgroundColor to return void instead of Promise<void>
+Add SSBevelPlugin (alpha)
+Add CombinedPostPlugin for combining all screen post-processing in a single pass
+Add abstract class GenericExtensionPlugin for post-processing extensions to be added in CombinedPostPlugin
+Add ChromaticAberrationPlugin, FilmicGrainPlugin, GammaCorrectionPlugin, LUTPlugin, VignettePlugin
+Add ChromaticAberrationExtension, FilmicGrainExtension, GammaCorrectionExtension, LUTExtension, VignetteExtension, TonemapExtension all implementing MaterialExtension
+Update TonemapPlugin to use CombinedPostPlugin. Add TonemapExtension to implement tonemap postprocessing. Use viewer.getPlugin(TonemapPlugin).config instead of viewer.getPlugin(TonemapPlugin).pass.passObject.
+GLTFExporter will convert all BufferGeometry attributes to non-normalized and export.
+Fixed import of Material.side in gltf material extras extension.
+Automatic Gamma correction removed from the viewer, add GammaCorrectionPlugin to get the same look.
+0.5.3
+In AssetImporter, importing disposed models again by path will automatically reimport the objects, unless reimportDisposed is set to false in import options.
+Fix error when importing Line objects in 3dm files.
+Add depthFunc to gltf in WEBGI_material_extras extension
+When importing assets with AssetManagerPlugin, all meshes with no material will be assigned a default standard material.
+Add mipmap filtering options to texture UI config.
+Add depthFunc and depthTest to physical material UI config.
+Prevent scene update in SelectionWidget visibility change.
+Add alert, confirm and prompt to ViewerApp and IUiObjectConfig
+Export ClearcoatTintPlugin, PresetLibraryPlugin, SceneLoopPlugin
+Add WindowiseDialogPlugin to editor for better alert, confirm and prompt. by overriding in viewer
+Fixed UX issue where it's not possible to set image by url without setting a load one first.
+Add makeDiamondMesh in DiamondPlugin to convert only a single mesh to diamond. (Make Diamond in the UI now prompts the user to convert all or just the selected mesh)
+Fix SVG serialization and deserialization in GLB files as image source.
+Update three.js to r143.
+0.5.2
+depthTonemap is true by default in TonemapPlugin
+Add dollyZoom to OrbitControls, CameraController
+Fix issues with clipBackground and non-tonemapped objects
+Reimporting materials with the same url or asset with addFromPath, importSinglePath, importAsset etc will not create new materials, instead instances created earlier will be returned.
+Fix issues with depth rendering in Reflector2 (used with GroundPlugin)
+Add types for options passed to AssetImporter, AssetExporter, AssetManagerPlugin, RootScene
+Add autoCenter in Object3DModel and import options, to center the imported model by changing its location according to bounding box. This is an alternative to pseudoCenter which creates a new parent.
+Moved setMaterial, setGeometry, setDirty and dispose to IModel interface from its userData(along with types in IModel interface). So instead of calling object.modelObject.userData.setDirty() you can call object.setDirty() directly.
+Deprecation warning for setter functions in userData for Object3D and Mesh
+Fixed bug where environment map intensity is not synced multiple materials on a single mesh.
+Add SceneCamerasUiPlugin for listing cameras in the scene, with camera UI options to set to the active camera or copy view settings to the current active camera.
+Add event handling for setView and activateMain events. Dispatch these events on cameras to change the main camera or copy view settings to the current active camera like: camera.dispatchEvent({type: 'setView', camera: camera})
+Moved material.userData.setDirty() to material.setDirty()
+Add uuid, visible and userData to IModel interface.
+limitCameraAboveGround in BaseGroundPlugin set to false by default as it can interfere with serialization of custom maxPolarAngle value in SerializableOrbitControls.
+Fix issue with SSR and AO multiplication when applied to the same object.
+0.5.1
+Disposing an object with object.modelObject.userData.dispose() will dispose all children as well.
+Add progress parameter for download progress (computed based on downloaded bytes) in importFile event of AssetImporter
+hierarchyChanged parameter added to sceneUpdate event in RootScene, fired when some object is added or removed from the scene's model root.
+Add traverseSceneObjects to ViewerApp to traverse all objects added to the scene model root.
+Rewrite LightsUiPlugin to update with scene.
+Fix noise with high roughness in Reflector2
+Fix issues when deserializing default camera options.
+0.5.0
+Removed processors from RootScene
+Convert setBackground and setEnvironment functions to sync. (in ViewerApp and RootScene)
+Add support for MSAA with isAntialiased parameter in ViewerApp constructor.
+Fixed issues with serialization of large DataTextures.
+Add blurTransmissionTarget in RenderPass2
+Changed defaults for GroundPlugin
+Shadow type set to PCFSoftShadowMap by default. It can be changed by setting viewer.renderer.rendererObject.shadowMap.type
+Add support for Unlit materials with MeshBasicMaterial2
+Add autoPushTarget with minDistance in OrbitControls
+Fixed issues when importing empty scenes with viewer configurations.
+Fixed read of normalMapBias when importing lights.
+Several other fixes and UI tweaks.
+Add CameraUiPlugin and RendererUiPlugin
+Export LightsUiPlugin in webgi bundle.

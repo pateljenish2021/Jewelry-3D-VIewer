@@ -1,0 +1,781 @@
+/* ===== RESET & CSS VARIABLES ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* Colors */
+    --color-primary: #0f1720;
+    --color-accent: #d4af37;
+    --color-accent-light: #f5ecd6;
+    --color-text: #1a1a1a;
+    --color-text-muted: #6b7280;
+    --color-bg: #fafafa;
+    --color-white: #ffffff;
+    --color-border: #e5e7eb;
+    --color-border-hover: #d1d5db;
+    --color-loader: #1f2937;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.25s ease;
+
+    /* Border radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-full: 9999px;
+}
+
+/* ===== CUSTOMIZATION PANEL ===== */
+.config-panel {
+    flex: 0 0 42%;
+    background: var(--color-white);
+    overflow-y: auto;
+    display: flex !important;
+    flex-direction: column;
+    border-left: 1px solid var(--color-border);
+    min-width: 420px;
+    position: relative;
+    height: 100vh;
+}
+
+.config-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.config-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.config-panel::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+}
+
+.config-panel::-webkit-scrollbar-thumb:hover {
+    background: #bbb;
+}
+
+/* Sections */
+.customization-section {
+    padding: 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.customization-section:last-child {
+    border-bottom: none;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text);
+}
+
+/* Tab Row */
+.tab-row {
+    display: flex;
+    gap: 8px;
+    padding: 20px 24px 16px;
+    background: var(--color-white);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Shank categories (Most Popular, Botanical, etc.) */
+.shank-category-wrap {
+    padding-left: 63px;
+    padding-right: 24px;
+}
+
+.shank-category-row {
+    display: flex;
+    gap: 18px;
+    padding: 12px 0;
+    margin: 0;
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex-wrap: nowrap;
+    cursor: grab;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+}
+
+.shank-category-row::-webkit-scrollbar {
+    display: none;
+}
+
+.shank-category-pill {
+    flex: 0 0 calc(33.333% - 12px);
+    position: relative;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 0;
+    text-align: center;
+    scroll-snap-align: start;
+}
+
+.shank-category-row.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+}
+
+
+
+.shank-category-pill.active {
+    background: var(--color-white);
+    border-color: #1f2937;
+}
+
+.shank-category-pill.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #1f2937;
+}
+
+/* Carousel wrapper and navigation buttons */
+.carousel-shell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: visible;
+    /* allow nav buttons to sit outside the scrolling area */
+}
+
+.carousel-shell::before,
+.carousel-shell::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 64px;
+    pointer-events: none;
+    z-index: 55;
+}
+
+.carousel-shell::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--color-white, #fff) 70%, transparent);
+}
+
+.carousel-shell::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--color-white, #fff) 70%, transparent);
+}
+
+.carousel {
+    display: flex;
+    gap: 22px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 8px 56px;
+    /* leave room for nav buttons */
+    flex: 1;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    cursor: grab;
+    touch-action: pan-x;
+}
+
+.carousel.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    user-select: none;
+}
+
+.carousel img {
+    user-select: none;
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+
+.carousel *,
+.carousel.is-dragging * {
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.carousel::-webkit-scrollbar {
+    display: none;
+}
+
+.carousel-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.98);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    z-index: 60;
+    opacity: 1;
+    /* always visible */
+    pointer-events: auto;
+    transition: opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.carousel-button:hover {
+    background: var(--color-white);
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-50%) translateY(-2px);
+    color: var(--color-text);
+}
+
+.carousel-button.prev {
+    left: 8px;
+    /* sit near edge, content padded to avoid overlap */
+}
+
+.carousel-button.next {
+    right: 8px;
+    /* sit near edge, content padded to avoid overlap */
+}
+
+/* Leave space inside carousels for nav buttons */
+.carousel-shell .carousel {
+    padding-left: 64px;
+    padding-right: 64px;
+}
+
+/* Ensure small carousels (shape, carat) leave room for nav buttons */
+.carousel-shell .shape-grid,
+.carousel-shell .carat-row {
+    padding-left: 64px !important;
+    padding-right: 64px !important;
+}
+
+/* Shape & Carat Pills */
+.shape-grid,
+.carat-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: nowrap;
+    /* Prevent wrapping so carousel works */
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.shape-grid::-webkit-scrollbar,
+.carat-row::-webkit-scrollbar {
+    display: none;
+}
+
+.shape-pill,
+.carat-pill {
+    padding: 10px 14px;
+    border: 2px solid var(--color-border);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    min-width: 90px;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+}
+
+.shape-pill:focus-visible,
+.carat-pill:focus-visible {
+    outline: 1px solid var(--color-border-hover);
+    outline-offset: 2px;
+}
+
+.shape-pill:active,
+.carat-pill:active {
+    background: var(--color-white);
+    border-color: var(--color-border);
+    box-shadow: none;
+}
+
+.shape-pill.active:active,
+.carat-pill.active:active {
+    border-color: #000000;
+}
+
+.shape-pill:hover,
+.carat-pill:hover {
+    border-color: var(--color-text);
+    background: var(--color-bg);
+}
+
+.shape-pill.active,
+.carat-pill.active {
+    background: var(--color-white);
+    color: var(--color-text);
+    border-color: #000000;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.shape-thumb {
+    width: 56px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shape-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.shape-label {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.shape-pill.disabled,
+.carat-pill.disabled,
+.band-card.disabled,
+.ring-design-card.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(1);
+}
+
+/* Setting Grid */
+.setting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 10px;
+}
+
+/* Band Card (Settings) Styles */
+.band-card {
+    background: var(--color-white);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: var(--transition-normal);
+    min-height: 110px;
+}
+
+.band-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.band-card.active {
+    border-color: #000000;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.band-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    flex: 1;
+}
+
+.band-image {
+    width: 100%;
+    height: 100%;
+    max-height: 60px;
+    object-fit: contain;
+}
+
+.band-label {
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    border-top: 1px solid var(--color-border);
+    background: #fdfdfd;
+}
+
+
+/* Matching band count buttons */
+.matching-bands-options {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 8px 0;
+}
+
+.matching-bands-options .band-count-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+    min-width: 110px;
+    height: 48px;
+    border-radius: 10px;
+    border: 1px solid #e9e9e9;
+    background: #ffffff;
+    color: #111;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: none;
+    transition: box-shadow 0.12s ease, transform 0.08s ease, border-color 0.12s ease;
+    font-size: 14px;
+}
+
+.matching-bands-options .band-count-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+    border-color: var(--color-border-hover);
+}
+
+.matching-bands-options .band-count-btn.active {
+    border-color: #111;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+    background: #ffffff;
+    transform: none;
+}
+
+.matching-bands-options .band-count-btn:disabled,
+.matching-bands-options .band-count-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f5f5f5;
+    border-color: #e0e0e0;
+    color: #999;
+}
+
+.matching-bands-options .band-count-btn:disabled:hover,
+.matching-bands-options .band-count-btn.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e0e0e0;
+}
+
+/* Metal Grid & Cards */
+.metal-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+
+.metal-card {
+    background: var(--color-white);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: var(--transition-normal);
+    min-height: 90px;
+}
+
+.metal-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.metal-card.active {
+    border-color: #000000;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.metal-swatch {
+    height: 60px;
+    width: 100%;
+}
+
+.metal-label {
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text);
+    background: var(--color-white);
+    border-top: 1px solid var(--color-border);
+}
+
+/* Two-Tone Toggle */
+.two-tone-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.two-tone-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #ddd;
+    border-radius: 24px;
+    transition: background 0.3s;
+    flex-shrink: 0;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.3s;
+}
+
+.two-tone-toggle input[type="checkbox"]:checked+.toggle-slider {
+    background: #000;
+}
+
+.two-tone-toggle input[type="checkbox"]:checked+.toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.toggle-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+/* Ring Design Cards (for Carousel) */
+.ring-design-card {
+    width: 167px;
+    height: 107px;
+    background: var(--color-white);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: var(--transition-normal);
+    flex-shrink: 0;
+    padding: 8px;
+}
+
+.ring-design-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.ring-design-card.active {
+    border-color: #000000;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.ring-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    padding: 8px;
+    flex: 1;
+}
+
+.ring-image {
+    width: 100%;
+    height: 60px;
+    object-fit: contain;
+}
+
+.ring-label {
+    padding: 0px 6px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    background: #ffffff;
+    border-top: 1px solid var(--color-border);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 1024px) {
+    .config-panel {
+        min-width: 100%;
+        height: auto;
+        flex: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .customization-section {
+        padding: 14px 14px;
+    }
+
+    .section-title {
+        font-size: 12px;
+        letter-spacing: 0.5px;
+    }
+
+    .shank-category-wrap {
+        padding-left: 44px;
+        padding-right: 16px;
+    }
+
+    .shank-category-row {
+        gap: 12px;
+        padding: 10px 0;
+    }
+
+    .shank-category-pill {
+        padding: 10px 12px;
+        font-size: 12px;
+        min-width: 0;
+    }
+
+    .carousel {
+        gap: 16px;
+        padding: 8px 40px;
+    }
+
+    .carousel-shell .carousel {
+        padding-left: 48px;
+        padding-right: 48px;
+    }
+
+    .ring-design-card {
+        width: 150px;
+        height: 96px;
+        padding: 6px;
+    }
+
+    .ring-image {
+        height: 52px;
+    }
+
+    .ring-label {
+        font-size: 10px;
+    }
+
+    .shape-grid,
+    .carat-row {
+        gap: 14px;
+    }
+
+    .shape-pill,
+    .carat-pill {
+        min-width: 80px;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .shape-thumb {
+        width: 48px;
+        height: 34px;
+    }
+
+    .metal-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .matching-bands-options {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
+/* Loader */
+.panel-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.9);
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.2s ease;
+    z-index: 200;
+}
+
+.panel-loader.visible {
+    display: flex;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.panel-loader.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dot-breath {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: #4a4a4a;
+    box-shadow: 0 0 0 6px rgba(150, 150, 150, 0.45);
+    animation: breath 1.2s ease-in-out infinite;
+    will-change: transform, box-shadow, opacity;
+}
+
+@keyframes breath {
+    0% { transform: scale(0.9); opacity: 0.65; box-shadow: 0 0 0 6px rgba(150, 150, 150, 0.45); }
+    50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 0 10px rgba(150, 150, 150, 0.05); }
+    100% { transform: scale(0.9); opacity: 0.65; box-shadow: 0 0 0 6px rgba(150, 150, 150, 0.45); }
+}

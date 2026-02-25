@@ -1,0 +1,784 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+// ========== RING CONFIGURATION - EASY TO MODIFY ==========
+// Change these values to adjust the ring appearance
+const RING_ROTATION_X = -0.3  // Tilt ring upward (0 = flat, positive = tilt up, try 0.2 to 0.4)
+const RING_ROTATION_Y = 0      // Rotate ring left/right (0 = front view)
+const RING_ROTATION_Z = 0      // Roll the ring (0 = normal)
+const RING_POSITION_Y = -0.3     // Vertical position (negative = down, try -0.1 to -0.3)
+// =========================================================
+
+const RingViewerPage = () => {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null)
+    const viewerRef = useRef<any>(null)
+    const managerRef = useRef<any>(null)
+    const diamondPluginRef = useRef<any>(null)
+    const object3dRef = useRef<any>(null)
+    const currentHeadRef = useRef<any>(null)
+    const currentShankRef = useRef<any>(null)
+    const materialConstructorRef = useRef<any>(null)
+
+    // Track loaded file paths to optimize updates
+    const currentHeadFileRef = useRef<string | null>(null)
+    const currentShankFileRef = useRef<string | null>(null)
+
+    // Cache loaded models by file URL to avoid reloading
+    // Maps file URL -> array of original mesh objects
+    const modelCacheRef = useRef<Map<string, any[]>>(new Map())
+
+    const loadIdRef = useRef(0)
+    const [isLoading, setIsLoading] = useState(false)
+
+    // Ring rotation and position state
+    const ringRotationRef = useRef({ x: RING_ROTATION_X, y: RING_ROTATION_Y, z: RING_ROTATION_Z })
+    const ringPositionRef = useRef({ y: RING_POSITION_Y })
+
+    // Track applied colors to avoid redundant updates
+    const lastHeadHexRef = useRef<string | null>(null)
+    const lastShankHexRef = useRef<string | null>(null)
+
+
+
+    // Function to update ring rotation
+    const updateRingRotation = useCallback(() => {
+        const viewer = viewerRef.current
+        if (!viewer) return
+
+        const { x, y, z } = ringRotationRef.current
+        if (currentHeadRef.current) {
+            currentHeadRef.current.rotation.set(x, y, z, 'XYZ')
+        }
+        if (currentShankRef.current) {
+            currentShankRef.current.rotation.set(x, y, z, 'XYZ')
+        }
+        viewer.setDirty?.()
+    }, [])
+
+    // Function to update ring position
+    const updateRingPosition = useCallback(() => {
+        const viewer = viewerRef.current
+        if (!viewer) return
+
+        const { y } = ringPositionRef.current
+        if (currentHeadRef.current) {
+            currentHeadRef.current.position.y = y
+        }
+        if (currentShankRef.current) {
+            currentShankRef.current.position.y = y
+        }
+        viewer.setDirty?.()
+    }, [])
+
+    // Expose control functions globally for console access
+    useEffect(() => {
+        ; (window as any).updateRingRotation = updateRingRotation
+            ; (window as any).updateRingPosition = updateRingPosition
+            ; (window as any).getRingRotationX = () => ringRotationRef.current.x
+            ; (window as any).setRingRotationX = (value: number) => {
+                ringRotationRef.current.x = value
+                updateRingRotation()
+            }
+            ; (window as any).getRingRotationY = () => ringRotationRef.current.y
+            ; (window as any).setRingRotationY = (value: number) => {
+                ringRotationRef.current.y = value
+                updateRingRotation()
+            }
+            ; (window as any).getRingRotationZ = () => ringRotationRef.current.z
+            ; (window as any).setRingRotationZ = (value: number) => {
+                ringRotationRef.current.z = value
+                updateRingRotation()
+            }
+            ; (window as any).getRingPositionY = () => ringPositionRef.current.y
+            ; (window as any).setRingPositionY = (value: number) => {
+                ringPositionRef.current.y = value
+                updateRingPosition()
+            }
+    }, [updateRingRotation, updateRingPosition])
+
+    const loadModels = useCallback(async (
+        viewer: any,
+        manager: any,
+        headData: { file: string | null; scale?: number; posZ?: number; name?: string } | null,
+        shankData: { file: string | null; scale?: number; posZ?: number; name?: string } | null,
+        metalHex?: string,
+        headMetalHex?: string,
+        shankMetalHex?: string
+    ) => {
+        const loadId = (loadIdRef.current += 1)
+
+        // Debounce to prevent rapid double-loading
+        if (loadId !== loadIdRef.current) return
+
+        setIsLoading(true)
+
+        try {
+            console.log('Starting load...')
+
+            // Helpers
+            const hexTo0x = (hex: string): number => {
+                const cleaned = hex.replace('#', '')
+                return parseInt(cleaned, 16)
+            }
+
+            const isDiamond = (name: string) => {
+                const n = name.toLowerCase()
+                return n.includes('diamond') ||
+                    n.includes('gem') ||
+                    n.includes('stone') ||
+                    n.includes('round') ||
+                    n.includes('oval') ||
+                    n.includes('emerald') ||
+                    n.includes('heart') ||
+                    n.includes('asscher') ||
+                    n.includes('radiant') ||
+                    n.includes('marquise') ||
+                    n.includes('pear') ||
+                    n.includes('princess') ||
+                    n.includes('cushion')
+            }
+
+            const applyColorToModel = (root: any, colorHex: string) => {
+                if (!root?.traverse || !colorHex) return
+                const color0x = hexTo0x(colorHex)
+                root.traverse((child: any) => {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material]
+                    const meshIsDiamond = child.isMesh && isDiamond(child.name || '')
+
+                    if (child.isMesh && materials.length > 0) {
+                        materials.forEach((mat: any) => {
+                            if (!mat) return
+                            const matName = mat.name?.toLowerCase() || ''
+
+                            // Check EACH material individually
+                            // Check if Mesh is named diamond OR Material is named diamond
+                            if (meshIsDiamond || isDiamond(matName)) {
+                                return
+                            }
+
+                            if (mat.color && typeof mat.color.setHex === 'function') {
+                                mat.color.setHex(color0x)
+                                mat.needsUpdate = true
+                            }
+                        })
+                    }
+                })
+            }
+
+            const refreshDiamonds = (root: any) => {
+                if (!root?.traverse || !diamondPluginRef.current) return
+
+                // Use a set to avoid re-registering the same material multiple times in one pass
+                const processed = new Set()
+
+                root.traverse((child: any) => {
+                    if (child.isMesh) {
+                        const meshIsDiamond = isDiamond(child.name || '')
+                        const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+
+
+                        materials.forEach((mat: any, index: number) => {
+                            if (!mat || processed.has(mat.uuid)) return
+
+                            // CRITICAL: Check if already registered in a previous pass to avoid double-processing
+                            if (mat.userData?.diamondPluginApplied) {
+                                processed.add(mat.uuid)
+                                return
+                            }
+
+                            // Checking for name corruption or pre-existing suffix from auto-runs
+                            const finalName = mat.name || ''
+                            const hasSuffix = finalName.includes('_0_1_')
+
+                            if (meshIsDiamond || isDiamond(finalName)) {
+                                let targetMat = mat
+
+                                if (finalName.includes('NaN')) {
+                                    console.log(`[refreshDiamonds] Corruption detected in "${finalName}". replacing with fresh material.`)
+
+                                    // CRITICAL FIX: Do NOT clone corrupted material (it crashes). Create FRESH material.
+                                    const MatClass = materialConstructorRef.current
+                                    if (MatClass) {
+                                        targetMat = new MatClass()
+                                        targetMat.name = finalName.split('_0_1_')[0]
+                                        targetMat.userData = { diamondPluginApplied: false }
+                                    } else {
+                                        // Fallback if constructor not loaded (unlikely)
+                                        console.warn('[refreshDiamonds] Material constructor not found, skipping corruption fix')
+                                        targetMat = mat
+                                    }
+
+                                    // Replace in the mesh
+                                    if (Array.isArray(child.material)) {
+                                        child.material[index] = targetMat
+                                    } else {
+                                        child.material = targetMat
+                                    }
+                                } else if (hasSuffix) {
+                                    console.log(`[refreshDiamonds] Skipping diamond: Mesh="${child.name}", Mat="${finalName}" (Already processed)`)
+                                    processed.add(mat.uuid)
+                                    return
+                                }
+
+                                console.log(`[refreshDiamonds] Registering diamond: Mesh="${child.name}", Mat="${targetMat.name}"`)
+                                diamondPluginRef.current.addDiamond?.(targetMat)
+                                targetMat.userData = { ...targetMat.userData, diamondPluginApplied: true }
+                                processed.add(targetMat.uuid)
+                            }
+                        })
+                    }
+                })
+            }
+
+
+
+            const disposeObject = (obj: any) => {
+                if (!obj) return
+                // We ONLY dispose geometries, not materials, because materials might be shared 
+                // between Head and Shank (e.g. Diamond material). If we dispose it here, 
+                // it breaks the other part of the ring.
+                obj.traverse?.((child: any) => {
+                    child.geometry?.dispose?.()
+                    // DO NOT dispose materials
+                })
+                obj.parent?.remove?.(obj)
+            }
+
+            // Check what needs updating - ONLY if new file is provided
+            const updateShank = !!shankData?.file && shankData.file !== currentShankFileRef.current
+            const updateHead = !!headData?.file && headData.file !== currentHeadFileRef.current
+
+            console.log('loadModels called with:', {
+                headDataFile: headData?.file,
+                shankDataFile: shankData?.file,
+                currentHeadRef: currentHeadFileRef.current,
+                currentShankRef: currentShankFileRef.current,
+                updateHead,
+                updateShank,
+                loadId
+            })
+
+            if (!updateShank && !updateHead) {
+                // Just update colors if needed
+                if (metalHex || headMetalHex || shankMetalHex) {
+                    const defaultColor = metalHex || '#c2c2c3'
+                    if (headMetalHex) applyColorToModel(currentHeadRef.current, headMetalHex)
+                    else applyColorToModel(currentHeadRef.current, defaultColor)
+
+                    if (shankMetalHex) applyColorToModel(currentShankRef.current, shankMetalHex)
+                    else applyColorToModel(currentShankRef.current, defaultColor)
+
+                    viewer.setDirty?.()
+                }
+                console.log('No model updates needed, only colors applied if any.')
+                setIsLoading(false)
+                return
+            }
+
+
+
+
+            // Dispose old models immediately
+            if (updateShank && currentShankRef.current) {
+                console.log('Disposing old shank:', currentShankFileRef.current)
+                // CRITICAL: Remove from scene FIRST, then dispose
+                if (currentShankRef.current.parent) {
+                    currentShankRef.current.parent.remove(currentShankRef.current)
+                }
+                disposeObject(currentShankRef.current)
+                currentShankRef.current = null
+                currentShankFileRef.current = null // FORCE RESET to ensure we don't think we have this file if reload fails
+            }
+            if (updateHead && currentHeadRef.current) {
+                console.log('Disposing old head:', currentHeadFileRef.current)
+                // CRITICAL: Remove from scene FIRST, then dispose
+                if (currentHeadRef.current.parent) {
+                    currentHeadRef.current.parent.remove(currentHeadRef.current)
+                }
+                disposeObject(currentHeadRef.current)
+                currentHeadRef.current = null
+                currentHeadFileRef.current = null // FORCE RESET
+            }
+
+            if (loadId !== loadIdRef.current) {
+                console.log('Aborted after dispose due to new load request')
+                return
+            }
+
+            // 2. Load New Models (Internal Helper)
+            const loadPart = async (variant: any, isHead: boolean) => {
+                if (!variant?.file) return null
+                if (loadId !== loadIdRef.current) return null
+
+                const scene = viewer.scene
+                const fileUrl = variant.file
+
+                // Check if we have this model cached
+                const cachedMeshes = modelCacheRef.current.get(fileUrl)
+
+                if (cachedMeshes && cachedMeshes.length > 0) {
+                    console.log(`[loadPart] Using cached model for ${fileUrl} (${cachedMeshes.length} meshes)`)
+
+                    // Add a small delay to show the loader
+                    await new Promise(resolve => setTimeout(resolve, 300))
+
+                    // Check if load was cancelled during delay
+                    if (loadId !== loadIdRef.current) {
+                        console.log(`Aborted cached load - loadId changed during delay`)
+                        return null
+                    }
+
+                    // Clone the cached meshes
+                    // Helper to clean material
+                    // Clone the cached meshes
+                    const clonedMeshes: any[] = []
+                    cachedMeshes.forEach((originalMesh: any) => {
+                        const clonedMesh = originalMesh.clone()
+
+                        // DEEP CLONE MATERIAL to ensure we have a fresh instance 
+                        // that hasn't been touched by DiamondPlugin in a previous run
+                        if (clonedMesh.material) {
+                            if (Array.isArray(clonedMesh.material)) {
+                                clonedMesh.material = clonedMesh.material.map((m: any) => {
+                                    const newMat = m.clone()
+                                    // Clear plugin flag on clone to ensure fresh start if needed
+                                    if (newMat.userData) delete newMat.userData.diamondPluginApplied
+                                    return newMat
+                                })
+                            } else {
+                                const newMat = clonedMesh.material.clone()
+                                if (newMat.userData) delete newMat.userData.diamondPluginApplied
+                                clonedMesh.material = newMat
+                            }
+                        }
+
+                        clonedMeshes.push(clonedMesh)
+                    })
+
+                    // Create container and add cloned meshes
+                    const Object3D = object3dRef.current
+                    const container = Object3D ? new Object3D() : null
+                    if (!container) return null
+
+                    container.name = variant?.name || (isHead ? 'head' : 'shank')
+                    const scale = 0.17
+                    container.scale.set(scale, scale, scale)
+                    if (typeof variant?.posZ === 'number') container.position.z = variant.posZ
+
+                    const { x, y, z } = ringRotationRef.current
+                    container.rotation.set(x, y, z, 'XYZ')
+
+                    clonedMeshes.forEach(mesh => container.add(mesh))
+
+                    console.log(`[loadPart] Created container with ${clonedMeshes.length} cloned meshes`)
+                    return container
+                }
+
+                // Not cached - load from file
+                console.log(`[loadPart] Loading ${fileUrl} for the first time`)
+
+                // Capture existing meshes to diff
+                const before = new Set<any>()
+                scene.traverse((o: any) => {
+                    if (o.type === 'Mesh' || o.type === 'SkinnedMesh') before.add(o)
+                })
+
+                console.log(`[loadPart] Before loading ${fileUrl}: ${before.size} meshes in scene`)
+
+                // For HEAD models, disable importing scene settings (lights, cameras, env) 
+                // to prevent overriding the SHANK's environment/ground settings.
+                const options = isHead ? {
+                    importCameras: false,
+                    importLights: false,
+                    // If the viewer uses specific config loading which might be triggered by GLB extras
+                    useConfig: false,
+                    autoScale: false,
+                } : undefined
+
+                console.log(`[loadPart] Loading ${fileUrl} with options:`, options)
+                await manager.addFromPath(fileUrl, options)
+
+                if (loadId !== loadIdRef.current) {
+                    console.log(`Aborted loading part ${fileUrl} - loadId changed`)
+                    return null
+                }
+
+                const added: any[] = []
+                scene.traverse((o: any) => {
+                    if ((o.type === 'Mesh' || o.type === 'SkinnedMesh') && !before.has(o)) {
+                        added.push(o)
+                    }
+                })
+
+                console.log(`[loadPart] After loading ${fileUrl}: found ${added.length} new meshes`)
+
+                if (added.length === 0) {
+                    console.error(`[loadPart] No meshes found after loading ${fileUrl} - file may be invalid`)
+                    return null
+                }
+
+                if (added.length > 0 && !materialConstructorRef.current) {
+                    const firstMesh = added[0]
+                    if (firstMesh.material) {
+                        const mat = Array.isArray(firstMesh.material) ? firstMesh.material[0] : firstMesh.material
+                        if (mat) {
+                            console.log('[loadPart] Capturing material constructor from fresh mesh')
+                            materialConstructorRef.current = mat.constructor
+                        }
+                    }
+                }
+
+                // Cache the loaded meshes for future use
+                console.log(`[loadPart] Caching ${added.length} meshes for ${fileUrl}`)
+
+                // DEEP CLONE for cache storage
+                const cacheEntry = added.map((mesh: any) => {
+                    const m = mesh.clone()
+                    if (m.material) {
+                        if (Array.isArray(m.material)) {
+                            m.material = m.material.map((mat: any) => mat.clone())
+                        } else {
+                            m.material = m.material.clone()
+                        }
+                    }
+                    return m
+                })
+
+                modelCacheRef.current.set(fileUrl, cacheEntry)
+
+                // No sanitization needed for fresh meshes here, refreshDiamonds will handle them
+
+
+                // Container setup
+                const Object3D = object3dRef.current
+                const container = Object3D ? new Object3D() : null
+                if (!container) return null // Should not happen
+
+                container.name = variant?.name || (isHead ? 'head' : 'shank')
+                const scale = 0.17
+                container.scale.set(scale, scale, scale)
+                if (typeof variant?.posZ === 'number') container.position.z = variant.posZ
+
+                const { x, y, z } = ringRotationRef.current
+                container.rotation.set(x, y, z, 'XYZ')
+
+                // Move meshes to container
+                added.forEach(mesh => container.add(mesh))
+
+                return container
+            }
+
+            // 3. Load New Models (in parallel so they appear together)
+            let newShankContainer: any = null
+            let newHeadContainer: any = null
+
+            // Load both in parallel
+            const loadPromises: Promise<any>[] = []
+
+            if (updateShank && shankData?.file) {
+                loadPromises.push(
+                    loadPart(shankData, false).then(container => {
+                        newShankContainer = container
+                        return container
+                    })
+                )
+            }
+
+            if (updateHead && headData?.file) {
+                loadPromises.push(
+                    loadPart(headData, true).then(container => {
+                        newHeadContainer = container
+                        return container
+                    })
+                )
+            }
+
+            // Wait for both to finish loading
+            if (loadPromises.length > 0) {
+                await Promise.all(loadPromises)
+
+                if (loadId !== loadIdRef.current) {
+                    console.log('Aborted after parallel load - loadId changed')
+                    return
+                }
+
+                // Add both to scene simultaneously so they appear together
+                const scene = viewer.scene
+                const posY = ringPositionRef.current.y
+
+                console.log(`[loadModels] Setting position.y to ${posY} before adding to scene`)
+
+                if (newShankContainer) {
+                    // Ensure position is set before adding to scene
+                    newShankContainer.position.y = posY
+                    console.log(`[loadModels] Shank position before add:`, newShankContainer.position.y)
+                    scene.add(newShankContainer)
+                    console.log(`[loadModels] Shank position after add:`, newShankContainer.position.y)
+                    currentShankRef.current = newShankContainer
+                    currentShankFileRef.current = shankData!.file
+
+
+
+                    console.log('Shank updated successfully:', shankData!.file)
+                }
+
+                if (newHeadContainer) {
+                    // Ensure position is set before adding to scene
+                    newHeadContainer.position.y = posY
+                    console.log(`[loadModels] Head position before add:`, newHeadContainer.position.y)
+                    scene.add(newHeadContainer)
+                    console.log(`[loadModels] Head position after add:`, newHeadContainer.position.y)
+                    currentHeadRef.current = newHeadContainer
+                    currentHeadFileRef.current = headData!.file
+
+
+
+                    console.log('Head updated successfully:', headData!.file)
+                }
+            }
+
+            if (loadId !== loadIdRef.current) return
+
+            // 4. Apply Properties (Colors, etc)
+            // Smart update: only apply color if model changed OR color changed
+            const targetHeadHex = headMetalHex || metalHex || '#c2c2c3'
+            const targetShankHex = shankMetalHex || metalHex || '#c2c2c3'
+
+            // Check if we need to update head color
+            if (currentHeadRef.current) {
+                const headColorChanged = targetHeadHex !== lastHeadHexRef.current
+                if (updateHead || headColorChanged) {
+                    console.log(`[loadModels] Applying color ${targetHeadHex} to head (update=${updateHead}, changed=${headColorChanged})`)
+                    applyColorToModel(currentHeadRef.current, targetHeadHex)
+                    lastHeadHexRef.current = targetHeadHex
+                }
+            }
+
+            // Check if we need to update shank color
+            if (currentShankRef.current) {
+                const shankColorChanged = targetShankHex !== lastShankHexRef.current
+                if (updateShank || shankColorChanged) {
+                    console.log(`[loadModels] Applying color ${targetShankHex} to shank (update=${updateShank}, changed=${shankColorChanged})`)
+                    applyColorToModel(currentShankRef.current, targetShankHex)
+                    lastShankHexRef.current = targetShankHex
+                }
+            }
+
+            // 5. Restore Environment & Diamonds
+            if (viewer.scene) {
+
+
+                // Fallback: Check everything just in case something was missed or not in the new containers
+                if (diamondPluginRef.current) {
+                    // Scan the entire scene materials as a backup using the new traversal helper
+                    // Note: viewer.scene is an Object3D so traversal works
+                    refreshDiamonds(viewer.scene)
+                }
+            }
+
+            console.log('Load complete')
+
+        } catch (error) {
+            console.error('Load error:', error)
+        } finally {
+
+
+            // Ensure viewer updated
+            viewer.setDirty?.()
+            requestAnimationFrame(() => {
+                viewer.setDirty?.()
+                if (viewer.scene?.setDirty) viewer.scene.setDirty()
+            })
+            setTimeout(() => viewer.setDirty?.(), 100)
+
+            setIsLoading(false)
+        }
+    }, [updateRingRotation, updateRingPosition, setIsLoading])
+
+    useEffect(() => {
+        let viewerInstance: any = null
+        let isMounted = true
+
+        const init = async () => {
+            if (!canvasRef.current) {
+                return
+            }
+
+            const {
+                ViewerApp,
+                AssetManagerPlugin,
+                addBasePlugins,
+                DiamondPlugin,
+                Object3D,
+                RandomizedDirectionalLightPlugin,
+            } = await import('webgi')
+
+            if (!isMounted) return
+
+            const viewer = new ViewerApp({ canvas: canvasRef.current })
+            viewerInstance = viewer
+            viewerRef.current = viewer
+
+            await addBasePlugins(viewer)
+            if (!isMounted) {
+                viewer.dispose?.()
+                return
+            }
+
+            // Disable auto-framing to prevent camera from adjusting when models load
+            const cameraView = viewer.scene.activeCamera
+            if (cameraView) {
+                // Lock camera position to prevent auto-framing
+                cameraView.controls && (cameraView.controls.autoRotate = false)
+            }
+
+            await viewer.addPlugin(RandomizedDirectionalLightPlugin)
+            const manager = await viewer.addPlugin(AssetManagerPlugin)
+            managerRef.current = manager
+
+            // Initialize DiamondPlugin for enhanced diamond rendering
+            const diamondPlugin = await viewer.addPlugin(DiamondPlugin)
+            diamondPluginRef.current = diamondPlugin
+
+            object3dRef.current = Object3D
+
+            if (!isMounted) {
+                viewer.dispose?.()
+                return
+            }
+
+            // Load initial models from query params
+            const params = new URLSearchParams(window.location.search)
+            const headFile = params.get('headFile')
+            const headScale = params.get('headScale')
+            const headPosZ = params.get('headPosZ')
+            const shankFile = params.get('shankFile')
+            const shankScale = params.get('shankScale')
+            const shankPosZ = params.get('shankPosZ')
+            const metalHex = params.get('metalHex')
+            const headMetalHex = params.get('headMetalHex')
+            const shankMetalHex = params.get('shankMetalHex')
+
+            const headData = headFile
+                ? {
+                    file: headFile,
+                    scale: headScale ? parseFloat(headScale) : undefined,
+                    posZ: headPosZ ? parseFloat(headPosZ) : undefined,
+                }
+                : null
+            const shankData = shankFile
+                ? {
+                    file: shankFile,
+                    scale: shankScale ? parseFloat(shankScale) : undefined,
+                    posZ: shankPosZ ? parseFloat(shankPosZ) : undefined,
+                }
+                : null
+
+            if (headData || shankData) {
+                await loadModels(
+                    viewer,
+                    manager,
+                    headData,
+                    shankData,
+                    metalHex || undefined,
+                    headMetalHex || undefined,
+                    shankMetalHex || undefined
+                )
+            }
+        }
+
+        init()
+
+        return () => {
+            isMounted = false
+            if (viewerInstance) {
+                viewerInstance.dispose?.()
+                viewerInstance = null
+            }
+            viewerRef.current = null
+            managerRef.current = null
+        }
+    }, [loadModels]) // Re-run if loadModels changes (it shouldn't often)
+
+    // Listen for messages from CustomizerPage
+    useEffect(() => {
+        const handler = (event: MessageEvent) => {
+            const data = event.data
+            if (data?.type === 'ring-selection' && viewerRef.current && managerRef.current) {
+                console.log('[RingViewerPage] Received ring-selection message:', data.payload)
+
+                const headPayload = data.payload?.head
+                const shankPayload = data.payload?.shank
+                const metalPayload = data.payload?.metalColor
+
+                // Safe check
+                if (!managerRef.current || !viewerRef.current) {
+                    console.warn('[RingViewerPage] Manager or viewer not ready')
+                    return
+                }
+
+                const headData = headPayload?.file
+                    ? {
+                        file: headPayload.file,
+                        scale: headPayload.scale,
+                        posZ: headPayload.posZ,
+                        name: headPayload.name || headPayload.label,
+                    }
+                    : null
+
+                const shankData = shankPayload?.file
+                    ? {
+                        file: shankPayload.file,
+                        scale: shankPayload.scale,
+                        posZ: shankPayload.posZ,
+                        name: shankPayload.name || shankPayload.label,
+                    }
+                    : null
+
+                const metalHex = metalPayload?.hexCode
+                const headMetalHex = metalPayload?.headHexCode
+                const shankMetalHex = metalPayload?.shankHexCode
+
+                console.log('[RingViewerPage] Calling loadModels with:', {
+                    headFile: headData?.file,
+                    shankFile: shankData?.file,
+                    metalHex,
+                    headMetalHex,
+                    shankMetalHex
+                })
+
+                loadModels(
+                    viewerRef.current,
+                    managerRef.current,
+                    headData,
+                    shankData,
+                    metalHex,
+                    headMetalHex,
+                    shankMetalHex
+                )
+            }
+        }
+
+        window.addEventListener('message', handler)
+        return () => window.removeEventListener('message', handler)
+    }, [loadModels])
+
+    return (
+        <section className="page viewer-page">
+            <canvas ref={canvasRef} className="viewer-canvas" />
+            {isLoading && (
+                <div className="viewer-loader">
+                    <div className="dot-loader">
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                    </div>
+                </div>
+            )}
+        </section>
+    )
+}
+
+export default RingViewerPage
