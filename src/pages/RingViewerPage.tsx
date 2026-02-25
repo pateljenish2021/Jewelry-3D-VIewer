@@ -43,6 +43,7 @@ const RingViewerPage = () => {
     // Cache loaded models by file URL to avoid reloading
     // Maps file URL -> array of original mesh objects
     const modelCacheRef = useRef<Map<string, any[]>>(new Map())
+    const assetLoadLockRef = useRef<Promise<void>>(Promise.resolve())
 
     const loadIdRef = useRef(0)
     const [isLoading, setIsLoading] = useState(true)
@@ -149,6 +150,21 @@ const RingViewerPage = () => {
         shankMetalHex?: string
     ) => {
         const loadId = (loadIdRef.current += 1)
+
+        const runWithAssetLoadLock = async <T,>(task: () => Promise<T>): Promise<T> => {
+            const waitForPrevious = assetLoadLockRef.current
+            let releaseLock!: () => void
+            assetLoadLockRef.current = new Promise<void>((resolve) => {
+                releaseLock = resolve
+            })
+
+            await waitForPrevious
+            try {
+                return await task()
+            } finally {
+                releaseLock()
+            }
+        }
 
         // Debounce to prevent rapid double-loading
         if (loadId !== loadIdRef.current) return
@@ -274,6 +290,13 @@ const RingViewerPage = () => {
                     // DO NOT dispose materials
                 })
                 obj.parent?.remove?.(obj)
+            }
+
+            const disposePendingContainers = (...containers: any[]) => {
+                containers.forEach((container) => {
+                    if (!container) return
+                    disposeObject(container)
+                })
             }
 
             const setBandVisibility = (count: number) => {
@@ -463,101 +486,140 @@ const RingViewerPage = () => {
 
                 // Not cached - load from file
                 console.log(`[loadPart] Loading ${fileUrl} for the first time`)
+                return await runWithAssetLoadLock(async () => {
+                    if (loadId !== loadIdRef.current) {
+                        console.log(`Skipping load for ${fileUrl} - stale load id before import`)
+                        return null
+                    }
 
-                // Capture existing meshes to diff
-                const before = new Set<any>()
-                scene.traverse((o: any) => {
-                    if (o.type === 'Mesh' || o.type === 'SkinnedMesh') before.add(o)
-                })
-                const beforeSceneChildren = new Set<any>(scene.children || [])
-
-                const removeAddedMeshes = () => {
-                    const leakedRoots = (scene.children || []).filter((child: any) => !beforeSceneChildren.has(child))
-                    leakedRoots.forEach((child: any) => {
-                        scene.remove(child)
+                    // Capture existing meshes to diff
+                    const before = new Set<any>()
+                    scene.traverse((o: any) => {
+                        if (o.type === 'Mesh' || o.type === 'SkinnedMesh') before.add(o)
                     })
-                    if (leakedRoots.length > 0) {
-                        console.log(`[loadPart] Removed ${leakedRoots.length} leaked scene roots for cancelled load: ${fileUrl}`)
+                    const beforeSceneChildren = new Set<any>(scene.children || [])
+
+                    const getAddedMeshes = () => {
+                        const added: any[] = []
+                        scene.traverse((o: any) => {
+                            if ((o.type === 'Mesh' || o.type === 'SkinnedMesh') && !before.has(o)) {
+                                added.push(o)
+                            }
+                        })
+                        return added
                     }
-                }
 
-                console.log(`[loadPart] Before loading ${fileUrl}: ${before.size} meshes in scene`)
+                    const removeAddedMeshes = () => {
+                        const addedMeshes = getAddedMeshes()
+                        addedMeshes.forEach((mesh: any) => {
+                            mesh.parent?.remove?.(mesh)
+                            mesh.geometry?.dispose?.()
+                        })
 
-                // For HEAD models, disable importing scene settings (lights, cameras, env) 
-                // to prevent overriding the SHANK's environment/ground settings.
-                const options = isHead ? {
-                    importCameras: false,
-                    importLights: false,
-                    // If the viewer uses specific config loading which might be triggered by GLB extras
-                    useConfig: false,
-                    autoScale: false,
-                } : undefined
+                        const leakedRoots = (scene.children || []).filter((child: any) => !beforeSceneChildren.has(child))
+                        leakedRoots.forEach((child: any) => {
+                            scene.remove(child)
+                        })
 
-                console.log(`[loadPart] Loading ${fileUrl} with options:`, options)
-                await manager.addFromPath(fileUrl, options)
-
-                if (loadId !== loadIdRef.current) {
-                    console.log(`Aborted loading part ${fileUrl} - loadId changed`)
-                    removeAddedMeshes()
-                    return null
-                }
-
-                const added: any[] = []
-                scene.traverse((o: any) => {
-                    if ((o.type === 'Mesh' || o.type === 'SkinnedMesh') && !before.has(o)) {
-                        added.push(o)
-                    }
-                })
-
-                console.log(`[loadPart] After loading ${fileUrl}: found ${added.length} new meshes`)
-
-                if (added.length === 0) {
-                    console.error(`[loadPart] No meshes found after loading ${fileUrl} - file may be invalid`)
-                    return null
-                }
-
-                // Cache the loaded meshes for future use
-                console.log(`[loadPart] Caching ${added.length} meshes for ${fileUrl}`)
-
-                // DEEP CLONE for cache storage
-                const cacheEntry = added.map((mesh: any) => {
-                    const m = mesh.clone()
-                    if (m.material) {
-                        if (Array.isArray(m.material)) {
-                            m.material = m.material.map((mat: any) => mat.clone())
-                        } else {
-                            m.material = m.material.clone()
+                        if (addedMeshes.length > 0 || leakedRoots.length > 0) {
+                            console.log(`[loadPart] Removed ${addedMeshes.length} stale meshes and ${leakedRoots.length} leaked roots for cancelled load: ${fileUrl}`)
                         }
                     }
-                    return m
+
+                    console.log(`[loadPart] Before loading ${fileUrl}: ${before.size} meshes in scene`)
+
+                    // For HEAD models, disable importing scene settings (lights, cameras, env) 
+                    // to prevent overriding the SHANK's environment/ground settings.
+                    const options = isHead ? {
+                        importCameras: false,
+                        importLights: false,
+                        // If the viewer uses specific config loading which might be triggered by GLB extras
+                        useConfig: false,
+                        autoScale: false,
+                    } : undefined
+
+                    console.log(`[loadPart] Loading ${fileUrl} with options:`, options)
+                    await manager.addFromPath(fileUrl, options)
+
+                    if (loadId !== loadIdRef.current) {
+                        console.log(`Aborted loading part ${fileUrl} - loadId changed`)
+
+                        // Preserve first-time imported meshes in cache before cleanup.
+                        // Without this, a canceled initial load may never be available again
+                        // if the asset manager deduplicates subsequent imports.
+                        const staleAdded = getAddedMeshes()
+                        if (staleAdded.length > 0 && !modelCacheRef.current.has(fileUrl)) {
+                            const staleCacheEntry = staleAdded.map((mesh: any) => {
+                                const m = mesh.clone()
+                                if (m.material) {
+                                    if (Array.isArray(m.material)) {
+                                        m.material = m.material.map((mat: any) => mat.clone())
+                                    } else {
+                                        m.material = m.material.clone()
+                                    }
+                                }
+                                return m
+                            })
+                            modelCacheRef.current.set(fileUrl, staleCacheEntry)
+                            console.log(`[loadPart] Cached ${staleAdded.length} stale meshes for ${fileUrl} before cleanup`)
+                        }
+
+                        removeAddedMeshes()
+                        return null
+                    }
+
+                    const added = getAddedMeshes()
+
+                    console.log(`[loadPart] After loading ${fileUrl}: found ${added.length} new meshes`)
+
+                    if (added.length === 0) {
+                        console.error(`[loadPart] No meshes found after loading ${fileUrl} - file may be invalid`)
+                        return null
+                    }
+
+                    // Cache the loaded meshes for future use
+                    console.log(`[loadPart] Caching ${added.length} meshes for ${fileUrl}`)
+
+                    // DEEP CLONE for cache storage
+                    const cacheEntry = added.map((mesh: any) => {
+                        const m = mesh.clone()
+                        if (m.material) {
+                            if (Array.isArray(m.material)) {
+                                m.material = m.material.map((mat: any) => mat.clone())
+                            } else {
+                                m.material = m.material.clone()
+                            }
+                        }
+                        return m
+                    })
+
+                    modelCacheRef.current.set(fileUrl, cacheEntry)
+
+                    // No sanitization needed for fresh meshes here, refreshDiamonds will handle them
+
+
+                    // Container setup
+                    const Object3D = object3dRef.current
+                    const container = Object3D ? new Object3D() : null
+                    if (!container) {
+                        removeAddedMeshes()
+                        return null // Should not happen
+                    }
+
+                    container.name = variant?.name || (isHead ? 'head' : 'shank')
+                    const baseScale = typeof variant?.scale === 'number' ? variant.scale : 0.17
+                    const finalScale = baseScale * RING_SCALE_MULTIPLIER
+                    container.scale.set(finalScale, finalScale, finalScale)
+                    if (typeof variant?.posZ === 'number') container.position.z = variant.posZ
+
+                    const { x, y, z } = ringRotationRef.current
+                    container.rotation.set(x, y, z, 'XYZ')
+
+                    // Move meshes to container
+                    added.forEach(mesh => container.add(mesh))
+
+                    return container
                 })
-
-                modelCacheRef.current.set(fileUrl, cacheEntry)
-
-                // No sanitization needed for fresh meshes here, refreshDiamonds will handle them
-
-
-                // Container setup
-                const Object3D = object3dRef.current
-                const container = Object3D ? new Object3D() : null
-                if (!container) {
-                    removeAddedMeshes()
-                    return null // Should not happen
-                }
-
-                container.name = variant?.name || (isHead ? 'head' : 'shank')
-                const baseScale = typeof variant?.scale === 'number' ? variant.scale : 0.17
-                const finalScale = baseScale * RING_SCALE_MULTIPLIER
-                container.scale.set(finalScale, finalScale, finalScale)
-                if (typeof variant?.posZ === 'number') container.position.z = variant.posZ
-
-                const { x, y, z } = ringRotationRef.current
-                container.rotation.set(x, y, z, 'XYZ')
-
-                // Move meshes to container
-                added.forEach(mesh => container.add(mesh))
-
-                return container
             }
 
             // 3. Load New Models (sequentially to avoid scene-diff overlap between parts)
@@ -570,6 +632,7 @@ const RingViewerPage = () => {
                 newShankContainer = await loadPart(shankData, false)
                 if (loadId !== loadIdRef.current) {
                     console.log('Aborted after shank load - loadId changed')
+                    disposePendingContainers(newShankContainer)
                     return
                 }
             }
@@ -578,6 +641,7 @@ const RingViewerPage = () => {
                 newHeadContainer = await loadPart(headData, true)
                 if (loadId !== loadIdRef.current) {
                     console.log('Aborted after head load - loadId changed')
+                    disposePendingContainers(newShankContainer, newHeadContainer)
                     return
                 }
             }
@@ -586,6 +650,7 @@ const RingViewerPage = () => {
                 newBandContainer1 = await loadPart(bandData[0], false)
                 if (loadId !== loadIdRef.current) {
                     console.log('Aborted after band 1 load - loadId changed')
+                    disposePendingContainers(newShankContainer, newHeadContainer, newBandContainer1)
                     return
                 }
             }
@@ -594,8 +659,15 @@ const RingViewerPage = () => {
                 newBandContainer2 = await loadPart(bandData[1], false)
                 if (loadId !== loadIdRef.current) {
                     console.log('Aborted after band 2 load - loadId changed')
+                    disposePendingContainers(newShankContainer, newHeadContainer, newBandContainer1, newBandContainer2)
                     return
                 }
+            }
+
+            if (loadId !== loadIdRef.current) {
+                console.log('Aborted before scene commit - loadId changed')
+                disposePendingContainers(newShankContainer, newHeadContainer, newBandContainer1, newBandContainer2)
+                return
             }
 
             if (newShankContainer || newHeadContainer || newBandContainer1 || newBandContainer2 || updateBand1 || updateBand2) {
